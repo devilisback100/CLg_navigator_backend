@@ -17,7 +17,7 @@ app = Flask(__name__)
 
 # Allow CORS for frontend access
 CORS(app, resources={
-    r"/*": {"origins": ["http://localhost:3000", "https://yourdomain.com"]}}, supports_credentials=True)
+    r"/*": {"origins": ["http://localhost:3000", "https://clg-navigator.vercel.app"]}}, supports_credentials=True)
 
 # Connect to MongoDB
 try:
