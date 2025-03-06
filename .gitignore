@@ -1,0 +1,16 @@
+# Virtual Environment
+myenv/
+venv/
+
+# Environment Variables
+.env
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Dependency files
+pip-log.txt
+pip-delete-this-directory.txt
