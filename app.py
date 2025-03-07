@@ -106,20 +106,26 @@ def get_colleges():
 @app.route("/colleges", methods=["POST"])
 def add_college():
     try:
-        data = request.json
+        data = request.get_json()
 
         required_fields = ["name", "location", "website", "contact",
                            "facilities", "departments", "courses", "city", "state", "branches"]
-        if not all(field in data for field in required_fields):
-            return jsonify({"success": False, "error": "Missing required fields"}), 400
 
-        # Ensure location contains necessary subfields
-        if not all(key in data["location"] for key in ["latitude", "longitude", "address"]):
-            return jsonify({"success": False, "error": "Invalid location data"}), 400
+        if not data:
+            return jsonify({"success": False, "error": "Request must contain JSON data"}), 400
 
-        # Ensure contact contains necessary subfields
-        if not all(key in data["contact"] for key in ["email", "phone"]):
-            return jsonify({"success": False, "error": "Invalid contact data"}), 400
+        missing_fields = [
+            field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({"success": False, "error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+
+        # Validate location fields
+        if not isinstance(data.get("location"), dict) or not all(key in data["location"] for key in ["latitude", "longitude", "address"]):
+            return jsonify({"success": False, "error": "Invalid location data. Must include latitude, longitude, and address."}), 400
+
+        # Validate contact fields
+        if not isinstance(data.get("contact"), dict) or not all(key in data["contact"] for key in ["email", "phone"]):
+            return jsonify({"success": False, "error": "Invalid contact data. Must include email and phone."}), 400
 
         data["created_at"] = datetime.utcnow()
         data["updated_at"] = datetime.utcnow()
@@ -130,8 +136,8 @@ def add_college():
         return jsonify({"success": True, "message": "College added successfully", "data": data}), 201
 
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
+        app.logger.error(f"Error adding college: {str(e)}")
+        return jsonify({"success": False, "error": "Internal Server Error. Please try again later."}), 500
 # 📌 DELETE route to remove a college by name
 
 
@@ -254,6 +260,47 @@ def get_map_data():
             facility["_id"] = str(facility["_id"])
 
         return jsonify({"success": True, "data": facilities}), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/colleges/<string:college_name>/rate", methods=["POST"])
+def rate_college(college_name):
+    try:
+        data = request.json
+        required_fields = ["user_email", "rating", "message"]
+
+        # Validate request data
+        if not all(field in data for field in required_fields):
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        # Check if user exists
+        user = user_collection.find_one({"email": data["user_email"]})
+        if not user:
+            return jsonify({"success": False, "error": "Invalid user"}), 403
+
+        # Check if college exists
+        college = clg_collection.find_one({"name": college_name})
+        if not college:
+            return jsonify({"success": False, "error": "College not found"}), 404
+
+        # Create review object
+        review = {
+            "user_id": str(user["_id"]),
+            "user_email": data["user_email"],
+            "rating": data["rating"],
+            "message": data["message"],
+            "timestamp": datetime.utcnow()
+        }
+
+        # Add review to the college document
+        clg_collection.update_one(
+            {"name": college_name},
+            {"$push": {"reviews": review}}
+        )
+
+        return jsonify({"success": True, "message": "Review added successfully"}), 201
+
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
