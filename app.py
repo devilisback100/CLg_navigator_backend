@@ -102,6 +102,36 @@ def get_colleges():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+
+@app.route("/colleges", methods=["POST"])
+def add_college():
+    try:
+        data = request.json
+
+        required_fields = ["name", "location", "website", "contact",
+                           "facilities", "departments", "courses", "city", "state", "branches"]
+        if not all(field in data for field in required_fields):
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        # Ensure location contains necessary subfields
+        if not all(key in data["location"] for key in ["latitude", "longitude", "address"]):
+            return jsonify({"success": False, "error": "Invalid location data"}), 400
+
+        # Ensure contact contains necessary subfields
+        if not all(key in data["contact"] for key in ["email", "phone"]):
+            return jsonify({"success": False, "error": "Invalid contact data"}), 400
+
+        data["created_at"] = datetime.utcnow()
+        data["updated_at"] = datetime.utcnow()
+
+        inserted_college = clg_collection.insert_one(data)
+        data["_id"] = str(inserted_college.inserted_id)
+
+        return jsonify({"success": True, "message": "College added successfully", "data": data}), 201
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # 📌 DELETE route to remove a college by name
 
 
